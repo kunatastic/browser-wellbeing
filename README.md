@@ -4,33 +4,12 @@ A Chrome extension that tracks your website usage and displays time spent on eac
 
 ## Features
 
-- **Real-time Tracking**: Automatically tracks time spent on websites
+- **Real-time Tracking**: Automatically tracks time spent on websites with precise session management
 - **Domain-based Analytics**: Groups time by domain (e.g., all GitHub pages as "github.com")
-- **Today's View**: Shows consolidated usage for the current day
-- **Tab Switch Detection**: Handles switching between tabs and windows
-- **Local Storage**: All data stored locally in your browser
-- **Modern UI**: Clean, responsive popup interface
-
-## Installation
-
-### Development Setup
-
-1. **Clone or download** this repository to your local machine
-
-2. **Open Chrome Extensions page**:
-
-   - Go to `chrome://extensions/`
-   - Enable "Developer mode" (toggle in top-right corner)
-
-3. **Load the extension**:
-
-   - Click "Load unpacked"
-   - Select the `browser-wellbeing` folder
-   - The extension should appear in your extensions list
-
-4. **Pin the extension** (optional):
-   - Click the puzzle piece icon in Chrome toolbar
-   - Find "Browser Digital Wellbeing" and click the pin icon
+- **Today's View**: Shows consolidated usage for the current day with beautiful progress bars
+- **Tab Switch Detection**: Handles switching between tabs and windows seamlessly
+- **Local Storage**: All data stored locally in your browser using Chrome's storage API
+- **Session Management**: Tracks individual browsing sessions with start/end times
 
 ## Usage
 
@@ -53,71 +32,20 @@ A Chrome extension that tracks your website usage and displays time spent on eac
 - No data is sent to external servers
 - Data persists between browser sessions
 
-## File Structure
-
-```
-browser-wellbeing/
-├── manifest.json          # Extension configuration
-├── background.js          # Core tracking logic
-├── hello.html            # Popup interface
-├── popup.js              # Data processing and display
-├── styles.css            # UI styling
-├── hello_extensions.png  # Extension icon
-└── README.md            # This file
-```
-
 ## Technical Details
 
-### Data Schema
+### TypeScript Architecture
 
-The extension stores session data in the following format:
+The extension is built with a modern TypeScript architecture:
 
-```javascript
-{
-  "sessions": [
-    {
-      "url": "https://github.com/user/repo",
-      "start_time": 1696521600000,  // timestamp in milliseconds
-      "end_time": 1696525200000,
-      "favicon": "https://github.com/favicon.ico"
-    }
-  ]
-}
-```
+- **Service Worker**: `background.ts` runs as a service worker (Manifest V3)
+- **Content Script**: `content.ts` injects into web pages for enhanced tracking
+- **Popup Script**: `popup.ts` handles the UI and data visualization
+- **Helper Functions**: `helper.ts` contains shared utilities
+- **Type Safety**: Full TypeScript coverage with Chrome extension types
+- **Build System**: TypeScript compiler with watch mode for development
 
-### Tracking Events
-
-The extension tracks:
-
-- **Tab switches**: When you move between different tabs
-- **URL changes**: When you navigate within a tab
-- **Window focus**: When you switch between browser and other applications
-- **Browser startup**: When you open Chrome
-
-### Domain Extraction
-
-- Removes `www.` prefix (e.g., `www.github.com` → `github.com`)
-- Groups all pages from the same domain together
-- Skips Chrome internal pages (`chrome://`, `chrome-extension://`)
-
-## Debugging
-
-### Console Logs
-
-The extension includes comprehensive logging for debugging:
-
-1. **Open Developer Tools**:
-
-   - Right-click the extension icon → "Inspect popup"
-   - Or go to `chrome://extensions/` → Click "Inspect views: background page"
-
-2. **Look for these log messages**:
-   - `🎯 Background script loaded` - Extension started
-   - `🚀 Started new session` - Tracking began
-   - `🔚 Ending session` - Session completed
-   - `📊 Storage check` - Periodic data verification
-
-### Common Issues
+### Common Issues (WIP)
 
 **No data showing up?**
 
@@ -136,23 +64,6 @@ The extension includes comprehensive logging for debugging:
 - Check Chrome storage quota
 - Ensure you're not in incognito mode (data won't persist)
 
-## Development
-
-### Making Changes
-
-1. **Edit the files** as needed
-2. **Reload the extension**:
-   - Go to `chrome://extensions/`
-   - Click the refresh icon on your extension
-3. **Test the changes** by browsing and checking the popup
-
-### Key Files
-
-- **`background.js`**: Core tracking logic - handles all browser events
-- **`popup.js`**: Data processing and UI updates
-- **`styles.css`**: Visual styling and layout
-- **`manifest.json`**: Extension configuration and permissions
-
 ## Privacy
 
 - **Local Storage Only**: All data stays on your device
@@ -162,12 +73,17 @@ The extension includes comprehensive logging for debugging:
 
 ## Future Enhancements
 
-- [ ] Time period filters (this week, all-time)
-- [ ] Incognito tracking option
-- [ ] Data export functionality
-- [ ] Usage goals and limits
-- [ ] Detailed page-level analytics
-- [ ] Productivity insights
+- [ ] Time period filters (this week, this month, all-time)
+- [ ] Data export functionality (CSV, JSON)
+- [ ] Usage goals and daily limits with notifications
+- [ ] Detailed page-level analytics (individual URLs)
+- [ ] Productivity insights and recommendations
+- [ ] Dark/light theme toggle
+- [ ] Data visualization charts and graphs
+- [ ] Website categorization (work, social, entertainment)
+- [ ] Focus mode with website blocking
+- [ ] Weekly/monthly usage reports
+- [ ] Integration with productivity tools
 
 ## Troubleshooting
 
