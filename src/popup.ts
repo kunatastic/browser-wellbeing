@@ -31,35 +31,24 @@ function processSessions(sessions: Session[]): ProcessedSessions {
   let todaySessions = 0;
   let skippedSessions = 0;
 
-  sessions.forEach((session, index) => {
-    console.log(`📋 Processing session ${index + 1}:`, {
-      domain: session.domain,
-      start: new Date(session.startAt).toLocaleString(),
-      end: session.endAt ? new Date(session.endAt).toLocaleString() : "ongoing",
-      isToday: isToday(session.startAt),
-    });
-
+  sessions.forEach((session) => {
     // Only process sessions from today
     if (!isToday(session.startAt)) {
-      console.log("⏭️ Skipping session (not today)");
       return;
     }
 
     // Skip sessions without endAt (ongoing sessions)
     if (!session.endAt) {
-      console.log("⏭️ Skipping ongoing session");
       skippedSessions++;
       return;
     }
 
     const domain = session.domain;
     if (!domain) {
-      console.log("⏭️ Skipping session (invalid domain)");
       return;
     }
 
     const sessionTime = session.endAt - session.startAt;
-    console.log(`⏱️ Session time: ${Math.round(sessionTime / 1000)}s for ${domain}`);
 
     if (domainStats[domain]) {
       domainStats[domain].time += sessionTime;
@@ -77,9 +66,6 @@ function processSessions(sessions: Session[]): ProcessedSessions {
     todaySessions++;
   });
 
-  console.log(
-    `📊 Processing complete: ${todaySessions} today's sessions, ${skippedSessions} skipped`
-  );
   return { domainStats, totalTime };
 }
 
@@ -156,10 +142,8 @@ function updateTotalTime(totalTime: number): void {
 async function waitForChromeAPIs(maxRetries: number = 10, delay: number = 100): Promise<boolean> {
   for (let i = 0; i < maxRetries; i++) {
     if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-      console.log(`✅ Chrome APIs available after ${i + 1} attempts`);
       return true;
     }
-    console.log(`⏳ Waiting for Chrome APIs... attempt ${i + 1}/${maxRetries}`);
     await new Promise((resolve) => setTimeout(resolve, delay));
   }
   return false;
@@ -167,7 +151,6 @@ async function waitForChromeAPIs(maxRetries: number = 10, delay: number = 100): 
 
 // Main function to load and display data
 async function loadUsageData(): Promise<void> {
-  console.log("🔄 Loading usage data...");
   try {
     // Wait for Chrome APIs to be available (Arc browser compatibility)
     const apisAvailable = await waitForChromeAPIs();
@@ -175,23 +158,12 @@ async function loadUsageData(): Promise<void> {
       throw new Error("Chrome storage API not available after retries");
     }
 
-    console.log("✅ Chrome storage API available");
-
     // Get sessions from storage
     const result = await chrome.storage.local.get(["sessions"]);
     const sessions: Session[] = result.sessions || [];
 
-    console.log(`📊 Found ${sessions.length} sessions in storage`);
-    console.log("📋 Raw sessions data:", sessions);
-
     // Process sessions
     const { domainStats, totalTime } = processSessions(sessions);
-
-    console.log("📈 Processed data:", {
-      domains: Object.keys(domainStats).length,
-      totalTime: `${Math.round(totalTime / 1000)}s`,
-      domainStats: domainStats,
-    });
 
     // Update UI
     updateTotalTime(totalTime);
@@ -224,14 +196,6 @@ async function loadUsageData(): Promise<void> {
 
 // Initialize the popup when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("Popup loaded - loading usage data");
-  console.log("Browser detection:", {
-    userAgent: navigator.userAgent,
-    chrome: typeof chrome !== "undefined",
-    chromeStorage: typeof chrome !== "undefined" && chrome.storage,
-    chromeStorageLocal: typeof chrome !== "undefined" && chrome.storage && chrome.storage.local,
-  });
-
   // Add a longer delay for Arc browser compatibility
   setTimeout(() => {
     loadUsageData();
@@ -240,14 +204,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Refresh data when popup is opened (in case data changed)
 window.addEventListener("focus", () => {
-  console.log("Window focused - refreshing data");
   loadUsageData();
 });
 
 // Add visibility change listener for better Arc compatibility
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
-    console.log("Document visible - refreshing data");
     loadUsageData();
   }
 });

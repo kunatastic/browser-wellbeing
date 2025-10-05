@@ -6,8 +6,6 @@ interface Session {
   favicon?: string;
   title?: string;
   description?: string;
-  startAtReadable: string;
-  endAtReadable: string;
 }
 
 interface TabActiveInfo {

@@ -23,7 +23,6 @@ function extractDomain(url: string): string | null {
 async function updateSession(url: string, tabId: number): Promise<void> {
   const domain = extractDomain(url);
   if (!domain) {
-    console.log("⚠️ Invalid URL, skipping session:", url);
     return;
   }
 
@@ -37,16 +36,6 @@ async function updateSession(url: string, tabId: number): Promise<void> {
     // If there's a current session, update it with end time
     if (currentSession) {
       currentSession.endAt = currentTime;
-      const sessionDuration = currentSession.endAt - currentSession.startAt;
-
-      console.log("🔚 Ending current session:", {
-        domain: currentSession.domain,
-        duration: `${Math.round(sessionDuration / 1000)}s`,
-        start: new Date(currentSession.startAt).toLocaleTimeString(),
-        end: new Date(currentSession.endAt).toLocaleTimeString(),
-      });
-
-      // Add the completed session to storage
       sessions.push(currentSession);
     }
 
@@ -61,22 +50,10 @@ async function updateSession(url: string, tabId: number): Promise<void> {
       favicon: pageMetadata.favicon || undefined,
       title: pageMetadata.title || undefined,
       description: pageMetadata.description || undefined,
-      startAtReadable: new Date(currentTime).toLocaleTimeString(),
-      endAtReadable: new Date(currentTime).toLocaleTimeString(),
     };
-
-    console.log("🚀 Started new session:", {
-      domain: domain,
-      tabId: currentSession.tabId,
-      favicon: pageMetadata.favicon,
-      title: pageMetadata.title,
-      startTime: new Date(currentSession.startAt).toLocaleTimeString(),
-    });
 
     // Save updated sessions to storage
     await chrome.storage.local.set({ sessions: sessions });
-
-    console.log("✅ Sessions updated successfully. Total sessions:", sessions.length);
   } catch (error) {
     console.error("❌ Error updating session:", error);
   }
@@ -122,11 +99,9 @@ async function getPageMetadata(
 
 // Handle tab activation (switching between tabs)
 chrome.tabs.onActivated.addListener(async (activeInfo: TabActiveInfo) => {
-  console.log("🔄 Tab activated:", activeInfo.tabId);
   try {
     // Get the active tab
     const tab = await chrome.tabs.get(activeInfo.tabId);
-    console.log("📄 Active tab URL:", tab.url);
 
     // Update session if tab has a valid URL
     if (tab.url) {
@@ -140,12 +115,9 @@ chrome.tabs.onActivated.addListener(async (activeInfo: TabActiveInfo) => {
 // Handle tab updates (URL changes within a tab)
 chrome.tabs.onUpdated.addListener(
   async (tabId: number, changeInfo: TabChangeInfo, tab: chrome.tabs.Tab) => {
-    console.log("🔄 Tab updated:", { tabId, changeInfo, url: tab.url });
     try {
       // Only process when URL changes and tab is complete
       if (changeInfo.url && changeInfo.status === "complete") {
-        console.log("📍 URL changed to:", tab.url);
-
         // Update session if it's a valid URL
         if (tab.url) {
           await updateSession(tab.url, tabId);
@@ -159,11 +131,9 @@ chrome.tabs.onUpdated.addListener(
 
 // Handle window focus changes (browser losing/gaining focus)
 chrome.windows.onFocusChanged.addListener(async (windowId: number) => {
-  console.log("🪟 Window focus changed:", windowId);
   try {
     if (windowId === chrome.windows.WINDOW_ID_NONE) {
       // Browser lost focus - end current session
-      console.log("👋 Browser lost focus, ending session");
       if (currentSession) {
         currentSession.endAt = Date.now();
         const result = await chrome.storage.local.get(["sessions"]);
@@ -174,11 +144,9 @@ chrome.windows.onFocusChanged.addListener(async (windowId: number) => {
       }
     } else {
       // Browser gained focus - get the active tab and start session
-      console.log("👀 Browser gained focus, getting active tab");
       const tabs = await chrome.tabs.query({ active: true, windowId: windowId });
       if (tabs.length > 0) {
         const tab = tabs[0];
-        console.log("📄 Active tab on focus:", tab.url);
         if (tab.url && tab.id) {
           await updateSession(tab.url, tab.id);
         }
@@ -229,28 +197,4 @@ chrome.runtime.onSuspend.addListener(async () => {
     await chrome.storage.local.set({ sessions: sessions });
     currentSession = null;
   }
-});
-
-console.log("🎯 Background script loaded - Website time tracker active");
-console.log("📊 Extension permissions:", {
-  tabs: typeof chrome.tabs !== "undefined",
-  storage: typeof chrome.storage !== "undefined",
-  windows: typeof chrome.windows !== "undefined",
-  runtime: typeof chrome.runtime !== "undefined",
-  scripting: typeof chrome.scripting !== "undefined",
-});
-
-// Add browser detection for debugging
-console.log("🌐 Browser environment:", {
-  userAgent: navigator.userAgent,
-  isArc: navigator.userAgent.includes("Arc"),
-  isChrome: navigator.userAgent.includes("Chrome"),
-  chromeAPIs: {
-    chrome: typeof chrome !== "undefined",
-    storage: typeof chrome !== "undefined" && chrome.storage,
-    tabs: typeof chrome !== "undefined" && chrome.tabs,
-    windows: typeof chrome !== "undefined" && chrome.windows,
-    runtime: typeof chrome !== "undefined" && chrome.runtime,
-    scripting: typeof chrome !== "undefined" && chrome.scripting,
-  },
 });
