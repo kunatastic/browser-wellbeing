@@ -1,7 +1,7 @@
 {
   "name": "Browser Digital Wellbeing",
   "description": "Tracking the time spent on each websites throughtout the day",
-  "version": "1.0",
+  "version": "1.0.0",
   "manifest_version": 3,
   "permissions": [
     "tabs",
@@ -17,6 +17,6 @@
   },
   "action": {
     "default_popup": "hello.html",
-    "default_icon": "hello_extensions.png"
+    "default_icon": "wellbeing.png"
   }
 }
