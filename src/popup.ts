@@ -1,6 +1,17 @@
 /// <reference types="chrome-types" />
 // Popup script for displaying website usage statistics
 
+// Cache for processed data
+let cachedData: ProcessedSessions | null = null;
+let lastDataUpdate = 0;
+const CACHE_DURATION = 30000; // 30 seconds
+
+// Function to invalidate cache (force fresh data)
+function invalidateCache(): void {
+  cachedData = null;
+  lastDataUpdate = 0;
+}
+
 // Helper function to format time in milliseconds to readable format
 function formatTime(milliseconds: number): string {
   const seconds = Math.floor(milliseconds / 1000);
@@ -152,6 +163,15 @@ async function waitForChromeAPIs(maxRetries: number = 10, delay: number = 100): 
 // Main function to load and display data
 async function loadUsageData(): Promise<void> {
   try {
+    // Check if we have valid cached data
+    const now = Date.now();
+    if (cachedData && now - lastDataUpdate < CACHE_DURATION) {
+      // Use cached data
+      updateTotalTime(cachedData.totalTime);
+      renderDomainList(cachedData.domainStats, cachedData.totalTime);
+      return;
+    }
+
     // Wait for Chrome APIs to be available (Arc browser compatibility)
     const apisAvailable = await waitForChromeAPIs();
     if (!apisAvailable) {
@@ -164,6 +184,10 @@ async function loadUsageData(): Promise<void> {
 
     // Process sessions
     const { domainStats, totalTime } = processSessions(sessions);
+
+    // Cache the processed data
+    cachedData = { domainStats, totalTime };
+    lastDataUpdate = now;
 
     // Update UI
     updateTotalTime(totalTime);
@@ -204,12 +228,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Refresh data when popup is opened (in case data changed)
 window.addEventListener("focus", () => {
+  // Invalidate cache to get fresh data when popup is focused
+  invalidateCache();
   loadUsageData();
 });
 
 // Add visibility change listener for better Arc compatibility
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
+    // Invalidate cache to get fresh data when document becomes visible
+    invalidateCache();
     loadUsageData();
   }
 });

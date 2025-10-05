@@ -2,6 +2,40 @@
 // Background script for tracking website visits and time spent
 
 let currentSession: Session | null = null;
+let sessionBatch: Session[] = [];
+let lastStorageUpdate = 0;
+const STORAGE_BATCH_DELAY = 2000; // 2 seconds
+const MAX_SESSIONS = 1000; // Limit sessions to prevent memory issues
+
+// Optimized storage functions
+async function batchSaveSessions(): Promise<void> {
+  if (sessionBatch.length === 0) return;
+
+  try {
+    const result = await chrome.storage.local.get(["sessions"]);
+    const existingSessions: Session[] = result.sessions || [];
+
+    // Merge with existing sessions and limit total
+    const allSessions = [...existingSessions, ...sessionBatch];
+    const limitedSessions = allSessions.slice(-MAX_SESSIONS);
+
+    await chrome.storage.local.set({ sessions: limitedSessions });
+    sessionBatch = [];
+    lastStorageUpdate = Date.now();
+  } catch (error) {
+    console.error("❌ Error batch saving sessions:", error);
+  }
+}
+
+// Debounced storage update
+function scheduleStorageUpdate(): void {
+  const now = Date.now();
+  if (now - lastStorageUpdate > STORAGE_BATCH_DELAY) {
+    batchSaveSessions();
+  } else {
+    setTimeout(batchSaveSessions, STORAGE_BATCH_DELAY - (now - lastStorageUpdate));
+  }
+}
 
 // Helper function to extract domain from URL
 function extractDomain(url: string): string | null {
@@ -29,14 +63,10 @@ async function updateSession(url: string, tabId: number): Promise<void> {
   const currentTime = Date.now();
 
   try {
-    // Get existing sessions
-    const result = await chrome.storage.local.get(["sessions"]);
-    const sessions: Session[] = result.sessions || [];
-
-    // If there's a current session, update it with end time
+    // If there's a current session, add it to batch
     if (currentSession) {
       currentSession.endAt = currentTime;
-      sessions.push(currentSession);
+      sessionBatch.push(currentSession);
     }
 
     // Get page metadata (favicon, title, description) from content script
@@ -48,12 +78,10 @@ async function updateSession(url: string, tabId: number): Promise<void> {
       startAt: currentTime,
       tabId: tabId,
       favicon: pageMetadata.favicon || undefined,
-      title: pageMetadata.title || undefined,
-      description: pageMetadata.description || undefined,
     };
 
-    // Save updated sessions to storage
-    await chrome.storage.local.set({ sessions: sessions });
+    // Schedule batched storage update
+    scheduleStorageUpdate();
   } catch (error) {
     console.error("❌ Error updating session:", error);
   }
@@ -103,7 +131,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo: TabActiveInfo) => {
     // Get the active tab
     const tab = await chrome.tabs.get(activeInfo.tabId);
 
-    // Update session if tab has a valid URL
+    // Update session if tab has a valid URL (fullscreen mode is tracked as usage)
     if (tab.url) {
       await updateSession(tab.url, activeInfo.tabId);
     }
@@ -136,11 +164,9 @@ chrome.windows.onFocusChanged.addListener(async (windowId: number) => {
       // Browser lost focus - end current session
       if (currentSession) {
         currentSession.endAt = Date.now();
-        const result = await chrome.storage.local.get(["sessions"]);
-        const sessions: Session[] = result.sessions || [];
-        sessions.push(currentSession);
-        await chrome.storage.local.set({ sessions: sessions });
+        sessionBatch.push(currentSession);
         currentSession = null;
+        scheduleStorageUpdate();
       }
     } else {
       // Browser gained focus - get the active tab and start session
@@ -191,10 +217,9 @@ chrome.runtime.onInstalled.addListener(async () => {
 chrome.runtime.onSuspend.addListener(async () => {
   if (currentSession) {
     currentSession.endAt = Date.now();
-    const result = await chrome.storage.local.get(["sessions"]);
-    const sessions: Session[] = result.sessions || [];
-    sessions.push(currentSession);
-    await chrome.storage.local.set({ sessions: sessions });
+    sessionBatch.push(currentSession);
     currentSession = null;
   }
+  // Force save any pending sessions
+  await batchSaveSessions();
 });

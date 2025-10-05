@@ -4,8 +4,6 @@ interface Session {
   endAt?: number;
   tabId: number;
   favicon?: string;
-  title?: string;
-  description?: string;
 }
 
 interface TabActiveInfo {
