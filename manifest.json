@@ -1,0 +1,18 @@
+{
+  "name": "Browser Digital Wellbeing",
+  "description": "Tracking the time spent on each websites throughtout the day",
+  "version": "1.0",
+  "manifest_version": 3,
+  "permissions": [
+    "tabs",
+    "storage",
+    "activeTab"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "hello.html",
+    "default_icon": "hello_extensions.png"
+  }
+}
