@@ -61,14 +61,49 @@ async function endCurrentSession() {
   }
 }
 
-// Helper function to get favicon URL
-function getFaviconUrl(url) {
+// Helper function to get favicon URL from page head
+async function getFaviconUrl(tabId) {
   try {
-    const urlObj = new URL(url);
-    return `${urlObj.protocol}//${urlObj.hostname}/favicon.ico`;
+    // Check if scripting API is available (Arc compatibility)
+    if (!chrome.scripting || !chrome.scripting.executeScript) {
+      console.log("⚠️ Scripting API not available, skipping favicon extraction");
+      return null;
+    }
+
+    // Execute script in the page to extract favicon from head
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      func: () => {
+        // Look for favicon in various places in the head
+        const faviconSelectors = [
+          'link[rel="icon"]',
+          'link[rel="shortcut icon"]',
+          'link[rel="apple-touch-icon"]',
+          'link[rel="apple-touch-icon-precomposed"]',
+        ];
+
+        for (const selector of faviconSelectors) {
+          const link = document.querySelector(selector);
+          if (link && link.href) {
+            return link.href;
+          }
+        }
+
+        // Fallback to default favicon.ico
+        return `${window.location.protocol}//${window.location.hostname}/favicon.ico`;
+      },
+    });
+
+    return results[0]?.result || null;
   } catch (error) {
-    console.error("Error generating favicon URL:", error);
-    return null;
+    console.error("Error extracting favicon from page:", error);
+    // Fallback to default favicon.ico
+    try {
+      const urlObj = new URL(url);
+      return `${urlObj.protocol}//${urlObj.hostname}/favicon.ico`;
+    } catch (fallbackError) {
+      return null;
+    }
   }
 }
 
@@ -80,8 +115,8 @@ async function startNewSession(url, tabId) {
     return;
   }
 
-  // Get favicon URL
-  const faviconUrl = getFaviconUrl(url);
+  // Get favicon URL from page head
+  const faviconUrl = await getFaviconUrl(tabId);
 
   currentSession = {
     url: url,
@@ -231,6 +266,23 @@ console.log("📊 Extension permissions:", {
   tabs: typeof chrome.tabs !== "undefined",
   storage: typeof chrome.storage !== "undefined",
   windows: typeof chrome.windows !== "undefined",
+  runtime: typeof chrome.runtime !== "undefined",
+  scripting: typeof chrome.scripting !== "undefined",
+});
+
+// Add browser detection for debugging
+console.log("🌐 Browser environment:", {
+  userAgent: navigator.userAgent,
+  isArc: navigator.userAgent.includes("Arc"),
+  isChrome: navigator.userAgent.includes("Chrome"),
+  chromeAPIs: {
+    chrome: typeof chrome !== "undefined",
+    storage: typeof chrome !== "undefined" && chrome.storage,
+    tabs: typeof chrome !== "undefined" && chrome.tabs,
+    windows: typeof chrome !== "undefined" && chrome.windows,
+    runtime: typeof chrome !== "undefined" && chrome.runtime,
+    scripting: typeof chrome !== "undefined" && chrome.scripting,
+  },
 });
 
 // Add periodic storage check for debugging

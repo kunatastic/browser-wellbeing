@@ -24,11 +24,11 @@ function formatTime(milliseconds) {
 
   if (hours > 0) {
     const remainingMinutes = minutes % 60;
-    return `${hours}h ${remainingMinutes}m`;
+    return `<span class="time-number">${hours}</span><span class="time-unit">h</span> <span class="time-number">${remainingMinutes}</span><span class="time-unit">m</span>`;
   } else if (minutes > 0) {
-    return `${minutes}m`;
+    return `<span class="time-number">${minutes}</span><span class="time-unit">m</span>`;
   } else {
-    return `${seconds}s`;
+    return `<span class="time-number">${seconds}</span><span class="time-unit">s</span>`;
   }
 }
 
@@ -160,16 +160,30 @@ function renderDomainList(domainStats, totalTime) {
 // Update total time display
 function updateTotalTime(totalTime) {
   const totalTimeElement = document.getElementById("totalTime");
-  totalTimeElement.textContent = formatTime(totalTime);
+  totalTimeElement.innerHTML = formatTime(totalTime);
+}
+
+// Helper function to wait for Chrome APIs to be available
+async function waitForChromeAPIs(maxRetries = 10, delay = 100) {
+  for (let i = 0; i < maxRetries; i++) {
+    if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+      console.log(`✅ Chrome APIs available after ${i + 1} attempts`);
+      return true;
+    }
+    console.log(`⏳ Waiting for Chrome APIs... attempt ${i + 1}/${maxRetries}`);
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  }
+  return false;
 }
 
 // Main function to load and display data
 async function loadUsageData() {
   console.log("🔄 Loading usage data...");
   try {
-    // Check if chrome.storage is available
-    if (typeof chrome === "undefined" || !chrome.storage) {
-      throw new Error("Chrome storage API not available");
+    // Wait for Chrome APIs to be available (Arc browser compatibility)
+    const apisAvailable = await waitForChromeAPIs();
+    if (!apisAvailable) {
+      throw new Error("Chrome storage API not available after retries");
     }
 
     console.log("✅ Chrome storage API available");
@@ -205,6 +219,7 @@ async function loadUsageData() {
         <h3>Error loading data</h3>
         <p>There was an error loading your usage data. Please try again.</p>
         <p style="font-size: 12px; margin-top: 10px; color: #999;">Error: ${error.message}</p>
+        <button onclick="loadUsageData()" style="margin-top: 10px; padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
       </div>
     `;
   }
@@ -213,14 +228,29 @@ async function loadUsageData() {
 // Initialize the popup when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
   console.log("Popup loaded - loading usage data");
+  console.log("Browser detection:", {
+    userAgent: navigator.userAgent,
+    chrome: typeof chrome !== "undefined",
+    chromeStorage: typeof chrome !== "undefined" && chrome.storage,
+    chromeStorageLocal: typeof chrome !== "undefined" && chrome.storage && chrome.storage.local,
+  });
 
-  // Add a small delay to ensure Chrome APIs are ready
+  // Add a longer delay for Arc browser compatibility
   setTimeout(() => {
     loadUsageData();
-  }, 100);
+  }, 200);
 });
 
 // Refresh data when popup is opened (in case data changed)
 window.addEventListener("focus", () => {
+  console.log("Window focused - refreshing data");
   loadUsageData();
+});
+
+// Add visibility change listener for better Arc compatibility
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    console.log("Document visible - refreshing data");
+    loadUsageData();
+  }
 });
