@@ -1,23 +1,8 @@
+/// <reference types="chrome-types" />
 // Popup script for displaying website usage statistics
 
-// Helper function to extract domain from URL
-function extractDomain(url) {
-  try {
-    const urlObj = new URL(url);
-    let hostname = urlObj.hostname;
-    // Remove 'www.' prefix if present
-    if (hostname.startsWith("www.")) {
-      hostname = hostname.substring(4);
-    }
-    return hostname;
-  } catch (error) {
-    console.error("Error extracting domain from URL:", url, error);
-    return null;
-  }
-}
-
 // Helper function to format time in milliseconds to readable format
-function formatTime(milliseconds) {
+function formatTime(milliseconds: number): string {
   const seconds = Math.floor(milliseconds / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
@@ -32,55 +17,48 @@ function formatTime(milliseconds) {
   }
 }
 
-// Helper function to get today's date string
-function getTodayString() {
-  return new Date().toISOString().split("T")[0];
-}
-
 // Helper function to check if a timestamp is from today
-function isToday(timestamp) {
+function isToday(timestamp: number): boolean {
   const today = new Date().toISOString().split("T")[0];
   const date = new Date(timestamp).toISOString().split("T")[0];
   return date === today;
 }
 
 // Process sessions and group by domain
-function processSessions(sessions) {
-  const domainStats = {};
+function processSessions(sessions: Session[]): ProcessedSessions {
+  const domainStats: Record<string, DomainStats> = {};
   let totalTime = 0;
   let todaySessions = 0;
   let skippedSessions = 0;
 
-  console.log("🔄 Processing sessions...");
-
   sessions.forEach((session, index) => {
     console.log(`📋 Processing session ${index + 1}:`, {
-      url: session.url,
-      start: new Date(session.start_time).toLocaleString(),
-      end: session.end_time ? new Date(session.end_time).toLocaleString() : "ongoing",
-      isToday: isToday(session.start_time),
+      domain: session.domain,
+      start: new Date(session.startAt).toLocaleString(),
+      end: session.endAt ? new Date(session.endAt).toLocaleString() : "ongoing",
+      isToday: isToday(session.startAt),
     });
 
     // Only process sessions from today
-    if (!isToday(session.start_time)) {
+    if (!isToday(session.startAt)) {
       console.log("⏭️ Skipping session (not today)");
       return;
     }
 
-    // Skip sessions without end_time (ongoing sessions)
-    if (!session.end_time) {
+    // Skip sessions without endAt (ongoing sessions)
+    if (!session.endAt) {
       console.log("⏭️ Skipping ongoing session");
       skippedSessions++;
       return;
     }
 
-    const domain = extractDomain(session.url);
+    const domain = session.domain;
     if (!domain) {
       console.log("⏭️ Skipping session (invalid domain)");
       return;
     }
 
-    const sessionTime = session.end_time - session.start_time;
+    const sessionTime = session.endAt - session.startAt;
     console.log(`⏱️ Session time: ${Math.round(sessionTime / 1000)}s for ${domain}`);
 
     if (domainStats[domain]) {
@@ -106,8 +84,9 @@ function processSessions(sessions) {
 }
 
 // Render the domain list
-function renderDomainList(domainStats, totalTime) {
+function renderDomainList(domainStats: Record<string, DomainStats>, totalTime: number): void {
   const content = document.getElementById("content");
+  if (!content) return;
 
   if (Object.keys(domainStats).length === 0) {
     content.innerHTML = `
@@ -127,7 +106,7 @@ function renderDomainList(domainStats, totalTime) {
     .map((domain) => {
       const percentage = totalTime > 0 ? (domain.time / totalTime) * 100 : 0;
       const faviconHtml = domain.favicon
-        ? `<img src="${domain.favicon}" alt="${domain.domain}" class="domain-favicon" onerror="this.style.display='none'">`
+        ? `<img src="${domain.favicon}" alt="${domain.domain}" class="domain-favicon" data-domain="${domain.domain}">`
         : `<div class="domain-favicon-placeholder">🌐</div>`;
 
       return `
@@ -155,16 +134,26 @@ function renderDomainList(domainStats, totalTime) {
       ${domainsList}
     </div>
   `;
+
+  // Add event listeners for favicon error handling
+  const faviconImages = content.querySelectorAll(".domain-favicon");
+  faviconImages.forEach((img) => {
+    (img as HTMLImageElement).addEventListener("error", () => {
+      (img as HTMLImageElement).style.display = "none";
+    });
+  });
 }
 
 // Update total time display
-function updateTotalTime(totalTime) {
+function updateTotalTime(totalTime: number): void {
   const totalTimeElement = document.getElementById("totalTime");
-  totalTimeElement.innerHTML = formatTime(totalTime);
+  if (totalTimeElement) {
+    totalTimeElement.innerHTML = formatTime(totalTime);
+  }
 }
 
 // Helper function to wait for Chrome APIs to be available
-async function waitForChromeAPIs(maxRetries = 10, delay = 100) {
+async function waitForChromeAPIs(maxRetries: number = 10, delay: number = 100): Promise<boolean> {
   for (let i = 0; i < maxRetries; i++) {
     if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
       console.log(`✅ Chrome APIs available after ${i + 1} attempts`);
@@ -177,7 +166,7 @@ async function waitForChromeAPIs(maxRetries = 10, delay = 100) {
 }
 
 // Main function to load and display data
-async function loadUsageData() {
+async function loadUsageData(): Promise<void> {
   console.log("🔄 Loading usage data...");
   try {
     // Wait for Chrome APIs to be available (Arc browser compatibility)
@@ -190,7 +179,7 @@ async function loadUsageData() {
 
     // Get sessions from storage
     const result = await chrome.storage.local.get(["sessions"]);
-    const sessions = result.sessions || [];
+    const sessions: Session[] = result.sessions || [];
 
     console.log(`📊 Found ${sessions.length} sessions in storage`);
     console.log("📋 Raw sessions data:", sessions);
@@ -207,21 +196,29 @@ async function loadUsageData() {
     // Update UI
     updateTotalTime(totalTime);
     renderDomainList(domainStats, totalTime);
-
-    console.log("✅ UI updated successfully");
   } catch (error) {
     console.error("❌ Error loading usage data:", error);
 
     const content = document.getElementById("content");
-    content.innerHTML = `
-      <div class="empty-state">
-        <div class="icon">⚠️</div>
-        <h3>Error loading data</h3>
-        <p>There was an error loading your usage data. Please try again.</p>
-        <p style="font-size: 12px; margin-top: 10px; color: #999;">Error: ${error.message}</p>
-        <button onclick="loadUsageData()" style="margin-top: 10px; padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
-      </div>
-    `;
+    if (content) {
+      content.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">⚠️</div>
+          <h3>Error loading data</h3>
+          <p>There was an error loading your usage data. Please try again.</p>
+          <p style="font-size: 12px; margin-top: 10px; color: #999;">Error: ${
+            (error as Error).message
+          }</p>
+          <button id="retryButton" style="margin-top: 10px; padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
+        </div>
+      `;
+
+      // Add event listener for retry button
+      const retryButton = document.getElementById("retryButton");
+      if (retryButton) {
+        retryButton.addEventListener("click", loadUsageData);
+      }
+    }
   }
 }
 

@@ -1,0 +1,16 @@
+{
+  "name": "browser-wellbeing",
+  "version": "1.0.0",
+  "description": "Chrome extension for tracking website usage and digital wellbeing",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "dev": "pnpm run build && pnpm run watch",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.1.22",
+    "chrome-types": "^0.1.0",
+    "typescript": "^5.3.3"
+  }
+}

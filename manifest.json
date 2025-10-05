@@ -6,17 +6,27 @@
   "permissions": [
     "tabs",
     "storage",
-    "activeTab",
-    "scripting"
+    "activeTab"
   ],
   "host_permissions": [
     "<all_urls>"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "dist/background.js"
   },
   "action": {
-    "default_popup": "hello.html",
-    "default_icon": "wellbeing.png"
-  }
+    "default_popup": "ui/hello.html",
+    "default_icon": "image/wellbeing.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "dist/content.js"
+      ],
+      "run_at": "document_end"
+    }
+  ]
 }
