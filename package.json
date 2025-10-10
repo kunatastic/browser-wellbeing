@@ -6,7 +6,8 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "dev": "pnpm run build && pnpm run watch",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "release": "node scripts/release.js"
   },
   "devDependencies": {
     "@types/chrome": "^0.1.22",
