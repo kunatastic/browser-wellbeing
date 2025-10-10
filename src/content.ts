@@ -3,12 +3,6 @@
 // Content script for extracting page metadata
 // This runs in the context of web pages and can access DOM elements
 
-interface PageMetadata {
-  favicon: string | null;
-  title: string | null;
-  description: string | null;
-}
-
 // Function to extract favicon from various sources
 function extractFavicon(): string | null {
   const faviconSelectors = [

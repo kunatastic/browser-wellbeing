@@ -29,3 +29,9 @@ interface ProcessedSessions {
   domainStats: Record<string, DomainStats>;
   totalTime: number;
 }
+
+interface PageMetadata {
+  favicon: string | null;
+  title: string | null;
+  description: string | null;
+}
